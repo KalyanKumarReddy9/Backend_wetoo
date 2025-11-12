@@ -99,6 +99,10 @@ function createApp() {
   app.use('/api/chat', require('./routes/chat.routes'));
   app.use('/api/student', require('./routes/student.routes'));
   app.use('/api/senior', require('./routes/senior.routes'));
+  // Conditionally mount admin routes for diagnostics
+  if (process.env.ENABLE_ADMIN_ROUTES === 'true') {
+    app.use('/api/admin', require('./routes/admin.routes'));
+  }
   
   // Add donation routes
   app.use('/api/donations', require('./routes/donationRoutes'));

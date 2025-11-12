@@ -12,6 +12,8 @@ This document explains how the backend sends email and what to configure when de
   - SMTP_PASS (SMTP password or App Password)
   - EMAIL_FROM (optional; default: `WE TOO <noreply@wetoo.local>`)
   - SENDGRID_API_KEY (optional; if set, SendGrid is preferred)
+    - ENABLE_ADMIN_ROUTES (optional; set to `true` to enable diagnostics routes)
+    - MAIL_DIAG_TOKEN (required if admin routes enabled; a secret token you pass via header)
 
 2) Important: do NOT store real credentials in the repository
 
@@ -44,6 +46,8 @@ This document explains how the backend sends email and what to configure when de
   - Render environment variables for SendGrid:
     - SENDGRID_API_KEY=<your_sendgrid_api_key>
     - EMAIL_FROM="WE TOO <verified-sender@yourdomain.com>" (must be a verified sender in SendGrid)
+     - ENABLE_ADMIN_ROUTES=true (temporary, for diagnostics)
+     - MAIL_DIAG_TOKEN=<choose-a-strong-random-token>
 
 6) Quick checklist to fix the ETIMEDOUT you're seeing
 
@@ -56,6 +60,13 @@ This document explains how the backend sends email and what to configure when de
 
 - Temporarily enable debug (NODE_ENV!=production) to see Nodemailer logs (the code already sets debug when not in production).
 - Add a small endpoint or script that calls transporter.verify() and returns the result for quick remote checks.
+ - This project includes admin diagnostics routes (disabled by default). To enable:
+   - Set ENABLE_ADMIN_ROUTES=true and MAIL_DIAG_TOKEN=your-secret on Render and redeploy.
+   - Endpoints (prefix /api/admin):
+     - GET /email-config (header: x-admin-token: <MAIL_DIAG_TOKEN>)
+     - GET /email-verify (header: x-admin-token: <MAIL_DIAG_TOKEN>) — tests SMTP verify only
+     - POST /email-test (header: x-admin-token: <MAIL_DIAG_TOKEN>, body: { to: "you@example.com" }) — sends a test email using the configured provider
+   - Remember to set ENABLE_ADMIN_ROUTES back to false when done.
 
 If you want, I can:
 - Add a tiny endpoint to the backend to run `transporter.verify()` and return the status for easy remote testing (safe to enable temporarily).
