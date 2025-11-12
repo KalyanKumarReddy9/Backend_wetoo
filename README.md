@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## WE TOO — Backend (Node.js + Express)
 
 Scripts:
@@ -11,3 +12,6 @@ Endpoints:
 - `GET /health` - health check
 
 
+=======
+# Backend_wetoo
+>>>>>>> 1263a67315052ea0a1e0bf9c559ff0f53dee5c20
