@@ -8,6 +8,13 @@ function generateCode() {
 }
 
 async function requestOtp(req, res) {
+  // Log the incoming request for debugging
+  console.log('OTP request received:', {
+    body: req.body,
+    headers: req.headers,
+    contentType: req.headers['content-type']
+  });
+  
   const { email, purpose = 'reset' } = req.body;
   if (!email) return res.status(400).json({ message: 'Email required' });
   
@@ -110,6 +117,11 @@ async function requestOtp(req, res) {
 }
 
 async function verifyOtp(req, res) {
+  console.log('OTP verify request received:', {
+    body: req.body,
+    headers: req.headers
+  });
+  
   const { email, code, purpose = 'reset' } = req.body;
   if (!email || !code) return res.status(400).json({ message: 'Email and code required' });
   const token = await OtpToken.findOne({ where: { email, code, purpose, used: false } });
@@ -125,6 +137,11 @@ async function verifyOtp(req, res) {
 }
 
 async function resetPassword(req, res) {
+  console.log('Password reset request received:', {
+    body: req.body,
+    headers: req.headers
+  });
+  
   const { email, code, newPassword } = req.body;
   if (!email || !code || !newPassword) return res.status(400).json({ message: 'Missing fields' });
   const token = await OtpToken.findOne({ where: { email, code, purpose: 'reset', used: false } });

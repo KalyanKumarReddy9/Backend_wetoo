@@ -41,9 +41,26 @@ function createApp() {
   // Note: In Express 5, wildcard '*' paths are not supported by path-to-regexp v6.
   // CORS middleware above will handle preflight automatically; no explicit app.options('*') needed.
   
-  // Increase JSON payload limit for base64 image uploads
+  // Add middleware to handle JSON parsing errors
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // Global error handler for JSON parsing errors
+  app.use((error, req, res, next) => {
+    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+      console.error('Bad JSON request body:', {
+        url: req.url,
+        method: req.method,
+        error: error.message,
+        rawBody: req.body
+      });
+      return res.status(400).json({ 
+        message: 'Invalid JSON format in request body',
+        error: error.message 
+      });
+    }
+    next();
+  });
 
   // Test route
   app.get('/api/test', (req, res) => {
@@ -85,6 +102,15 @@ function createApp() {
   
   // Add donation routes
   app.use('/api/donations', require('./routes/donationRoutes'));
+
+  // Global error handler
+  app.use((error, req, res, next) => {
+    console.error('Unhandled error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  });
 
   app.use((req, res) => {
     console.log(`Route not found: ${req.method} ${req.path}`);
