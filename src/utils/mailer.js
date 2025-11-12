@@ -1,4 +1,11 @@
 const nodemailer = require('nodemailer');
+let sgMail = null;
+try {
+  // Lazy require; only used if SENDGRID_API_KEY is present
+  sgMail = require('@sendgrid/mail');
+} catch (e) {
+  // package might not be installed yet; handled by feature flag
+}
 
 function createTransport(primary = true) {
   if (primary) {
@@ -23,9 +30,10 @@ function createTransport(primary = true) {
       tls: {
         rejectUnauthorized: process.env.NODE_ENV === 'production',
       },
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 60000,   // 60 seconds
-      socketTimeout: 60000,     // 60 seconds
+      // Keep timeouts modest so API calls don't hang the client too long
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 20000,     // 20 seconds
       logger: true,
       debug: process.env.NODE_ENV !== 'production'
     });
@@ -36,44 +44,95 @@ function createTransport(primary = true) {
   }
 }
 
+async function sendViaSmtp({ from, to, subject, text, html }) {
+  const transporter = createTransport(true);
+  // Directly attempt to send; skip verify to save time
+  return transporter.sendMail({ from, to, subject, text, html });
+}
+
+async function sendViaSendGrid({ from, to, subject, text, html }) {
+  if (!sgMail || !process.env.SENDGRID_API_KEY) {
+    throw new Error('SendGrid not configured');
+  }
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  const msg = {
+    to,
+    from, // Make sure this is a verified sender in SendGrid
+    subject,
+    text,
+    html,
+  };
+  const [response] = await sgMail.send(msg);
+  return { messageId: response.headers['x-message-id'] || response.headers['x-message-id'], response: response.statusCode };
+}
+
 async function sendMail({ to, subject, text, html }) {
   const from = process.env.EMAIL_FROM || 'WE TOO <noreply@wetoo.local>';
-  
-  try {
-    console.log('Attempting to send email:', { to, subject, from });
-    
-    // Try primary transport (Gmail)
-    const transporter = createTransport(true);
-    
-    // Test connection first
-    await transporter.verify();
-    console.log('SMTP connection verified successfully');
-    
-    const result = await transporter.sendMail({ from, to, subject, text, html });
-    console.log('Email sent successfully:', result.messageId);
-    return result;
-  } catch (error) {
-    console.error('Failed to send email with primary transport:', {
-      error: error.message,
-      code: error.code,
-      command: error.command,
-      to,
-      subject,
-      from
-    });
-    
-    // Log additional error details
-    if (error.response) {
-      console.error('SMTP Response:', error.response);
+
+  // Prefer SendGrid if configured, it uses HTTPS:443 and avoids SMTP port issues
+  const preferSendGrid = Boolean(process.env.SENDGRID_API_KEY);
+
+  console.log('Attempting to send email:', { to, subject, from, preferSendGrid });
+
+  const trySendGridFirst = async () => {
+    try {
+      const res = await sendViaSendGrid({ from, to, subject, text, html });
+      console.log('Email sent via SendGrid:', res);
+      return res;
+    } catch (e) {
+      console.error('SendGrid send failed:', e.message);
+      throw e;
     }
-    if (error.responseCode) {
-      console.error('SMTP Response Code:', error.responseCode);
+  };
+
+  const trySmtp = async () => {
+    try {
+      const res = await sendViaSmtp({ from, to, subject, text, html });
+      console.log('Email sent via SMTP:', res.messageId);
+      return res;
+    } catch (error) {
+      console.error('SMTP send failed:', {
+        error: error.message,
+        code: error.code,
+        command: error.command,
+      });
+      if (error.response) {
+        console.error('SMTP Response:', error.response);
+      }
+      if (error.responseCode) {
+        console.error('SMTP Response Code:', error.responseCode);
+      }
+      throw error;
     }
-    
-    // Try fallback mechanism here if needed
-    // For now, we'll just re-throw the error
-    
-    throw error;
+  };
+
+  // Determine order based on availability
+  if (preferSendGrid) {
+    try {
+      return await trySendGridFirst();
+    } catch (firstErr) {
+      // Fallback to SMTP
+      try {
+        return await trySmtp();
+      } catch (secondErr) {
+        // Re-throw the original preferred error for clarity
+        throw firstErr;
+      }
+    }
+  } else {
+    try {
+      return await trySmtp();
+    } catch (firstErr) {
+      // If SMTP failed (eg ETIMEDOUT) and SendGrid is available, try it
+      if (process.env.SENDGRID_API_KEY) {
+        try {
+          return await trySendGridFirst();
+        } catch (secondErr) {
+          throw firstErr;
+        }
+      }
+      throw firstErr;
+    }
   }
 }
 

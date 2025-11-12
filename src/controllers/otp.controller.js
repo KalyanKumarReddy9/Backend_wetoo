@@ -107,26 +107,25 @@ async function requestOtp(req, res) {
       The WE TOO Team
     `;
     
-    // Try to send email, but don't fail the request if email sending fails
-    let emailSent = false;
-    try {
-      await sendMail({
-        to: email,
-        subject: purpose === 'registration' ? 'WE TOO - Email Verification Code' : 'WE TOO - Password Reset OTP',
-        text: emailText,
-        html: emailHtml
-      });
-      console.log('OTP email sent successfully to:', email);
-      emailSent = true;
-    } catch (emailError) {
-      console.error('Failed to send OTP email:', emailError);
-      // Don't fail the request if email sending fails, just log it
-      // The user can still use the OTP code if they check the database or logs
-    }
-    
+    // Kick off email sending without blocking the response to avoid client timeouts
+    // We'll also log the result when it completes.
+    (async () => {
+      try {
+        await sendMail({
+          to: email,
+          subject: purpose === 'registration' ? 'WE TOO - Email Verification Code' : 'WE TOO - Password Reset OTP',
+          text: emailText,
+          html: emailHtml
+        });
+        console.log('OTP email sent successfully to:', email);
+      } catch (emailError) {
+        console.error('Failed to send OTP email (background):', emailError);
+      }
+    })();
+
     return res.json({ 
-      message: 'OTP sent', 
-      emailSent: emailSent,
+      message: 'OTP request received', 
+      emailSent: 'processing',
       // In development/Render, we might want to return the code for testing
       code: process.env.NODE_ENV === 'development' || process.env.RENDER ? code : undefined
     });

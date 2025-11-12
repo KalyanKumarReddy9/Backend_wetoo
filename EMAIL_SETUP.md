@@ -4,13 +4,14 @@ This document explains how the backend sends email and what to configure when de
 
 1) How mail is sent
 
-- The app uses Nodemailer. Transport is created in `src/utils/mailer.js`.
+- The app uses Nodemailer (SMTP) and can optionally use SendGrid (HTTP API) as a faster, more reliable path.
 - Transport settings are taken from environment variables:
   - SMTP_HOST (e.g. smtp.gmail.com)
   - SMTP_PORT (e.g. 587)
   - SMTP_USER (your SMTP username / email)
   - SMTP_PASS (SMTP password or App Password)
   - EMAIL_FROM (optional; default: `WE TOO <noreply@wetoo.local>`)
+  - SENDGRID_API_KEY (optional; if set, SendGrid is preferred)
 
 2) Important: do NOT store real credentials in the repository
 
@@ -35,30 +36,21 @@ This document explains how the backend sends email and what to configure when de
   - Ensure Render allows outbound connections to that host/port (Render typically allows outbound internet access, but double-check any private networking or firewall settings).
   - Confirm the SMTP host is reachable from Render (you can test using a simple remote TCP check or by temporarily deploying a small script to test connection).
 
-5) Recommended alternative: Use an API-based email provider (SendGrid, Mailgun, Postmark)
+5) Preferred option in production: Use an API-based email provider (SendGrid, Mailgun, Postmark)
 
-- API-based providers avoid SMTP connection issues and offer better deliverability and monitoring.
-- Example using SendGrid with Nodemailer (install `@sendgrid/mail` or use `nodemailer-sendgrid-transport`):
+- API-based providers avoid SMTP TCP issues and offer better deliverability and monitoring.
+- This project includes built-in SendGrid support via `@sendgrid/mail`. If `SENDGRID_API_KEY` is set, emails are sent via HTTPS:443.
 
-  - Using @sendgrid/mail directly (recommended):
-
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    await sgMail.send({ to, from: process.env.EMAIL_FROM, subject, text, html });
-
-  - Using nodemailer with SendGrid transport:
-
-    const nodemailer = require('nodemailer');
-    const sgTransport = require('nodemailer-sendgrid-transport');
-    const transporter = nodemailer.createTransport(sgTransport({ auth: { api_key: process.env.SENDGRID_API_KEY } }));
+  - Render environment variables for SendGrid:
+    - SENDGRID_API_KEY=<your_sendgrid_api_key>
+    - EMAIL_FROM="WE TOO <verified-sender@yourdomain.com>" (must be a verified sender in SendGrid)
 
 6) Quick checklist to fix the ETIMEDOUT you're seeing
 
-- [ ] On Render: set the SMTP_* environment variables as above (do not copy credentials into the repo).
-- [ ] If using Gmail, generate an App Password and use it as SMTP_PASS.
+- [ ] Preferred: Set SENDGRID_API_KEY on Render and a verified EMAIL_FROM; redeploy.
+- [ ] Alternatively: On Render set the SMTP_* environment variables as above. If using Gmail, use an App Password.
 - [ ] Ensure SMTP_PORT is 587 (or 465) and SMTP_HOST matches your provider.
 - [ ] Redeploy the service on Render after setting env vars.
-- [ ] If issues persist, try switching to an API-based provider and set SENDGRID_API_KEY on Render.
 
 7) Debugging tips
 
