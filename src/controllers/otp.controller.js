@@ -103,6 +103,7 @@ async function requestOtp(req, res) {
     `;
     
     // Try to send email, but don't fail the request if email sending fails
+    let emailSent = false;
     try {
       await sendMail({
         to: email,
@@ -111,6 +112,7 @@ async function requestOtp(req, res) {
         html: emailHtml
       });
       console.log('OTP email sent successfully to:', email);
+      emailSent = true;
     } catch (emailError) {
       console.error('Failed to send OTP email:', emailError);
       // Don't fail the request if email sending fails, just log it
@@ -119,9 +121,9 @@ async function requestOtp(req, res) {
     
     return res.json({ 
       message: 'OTP sent', 
-      emailSent: true,
+      emailSent: emailSent,
       // In development, we might want to return the code for testing
-      code: process.env.NODE_ENV === 'development' ? code : undefined
+      code: process.env.NODE_ENV === 'development' || process.env.RENDER ? code : undefined
     });
   } catch (error) {
     console.error('Error in requestOtp:', error);
@@ -210,6 +212,7 @@ async function resetPassword(req, res) {
     `;
     
     // Try to send confirmation email, but don't fail the request if it fails
+    let emailSent = false;
     try {
       await sendMail({
         to: email,
@@ -218,12 +221,13 @@ async function resetPassword(req, res) {
         html: emailHtml
       });
       console.log('Password reset confirmation email sent successfully to:', email);
+      emailSent = true;
     } catch (emailError) {
       console.error('Failed to send password reset confirmation email:', emailError);
       // Don't fail the request if email sending fails
     }
     
-    return res.json({ message: 'Password updated' });
+    return res.json({ message: 'Password updated', emailSent: emailSent });
   } catch (error) {
     console.error('Error in resetPassword:', error);
     return res.status(500).json({ message: 'Internal server error' });
