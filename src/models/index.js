@@ -57,20 +57,20 @@ async function connectAndSync() {
     const client = new Client({
       host: process.env.DB_HOST || 'localhost',
       port: Number(process.env.DB_PORT || 5432),
-      user: process.env.DB_USER || 'wetoo_user',
+      user: process.env.DB_USER || 'backend_wetoo_user',
       password: process.env.DB_PASS || '',
       database: 'postgres', // Connect to default database to create our database
     });
 
     await client.connect();
 
-    const dbName = process.env.DB_NAME || 'wetoo';
+    const dbName = process.env.DB_NAME || 'backend_wetoo';
 
     // Ensure database exists (non-destructive)
     await client.query(`
       CREATE DATABASE "${dbName}"
       WITH 
-      OWNER = ${process.env.DB_USER || 'wetoo_user'}
+      OWNER = ${process.env.DB_USER || 'backend_wetoo_user'}
       ENCODING = 'UTF8'
       LC_COLLATE = 'en_US.UTF-8'
       LC_CTYPE = 'en_US.UTF-8'

@@ -5,8 +5,8 @@ function createSequelizeInstance() {
   console.log('DB Config:', {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 5432),
-    database: process.env.DB_NAME || 'wetoo',
-    username: process.env.DB_USER || 'wetoo_user',
+    database: process.env.DB_NAME || 'backend_wetoo',
+    username: process.env.DB_USER || 'backend_wetoo_user',
     password: process.env.DB_PASS || '',
   });
   
@@ -24,8 +24,8 @@ function createSequelizeInstance() {
   };
 
   const db = new Sequelize(
-    process.env.DB_NAME || 'wetoo',
-    process.env.DB_USER || 'wetoo_user',
+    process.env.DB_NAME || 'backend_wetoo',
+    process.env.DB_USER || 'backend_wetoo_user',
     process.env.DB_PASS || '',
     common
   );
