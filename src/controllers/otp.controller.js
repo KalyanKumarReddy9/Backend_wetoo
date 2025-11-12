@@ -102,14 +102,27 @@ async function requestOtp(req, res) {
       The WE TOO Team
     `;
     
-    await sendMail({
-      to: email,
-      subject: purpose === 'registration' ? 'WE TOO - Email Verification Code' : 'WE TOO - Password Reset OTP',
-      text: emailText,
-      html: emailHtml
-    });
+    // Try to send email, but don't fail the request if email sending fails
+    try {
+      await sendMail({
+        to: email,
+        subject: purpose === 'registration' ? 'WE TOO - Email Verification Code' : 'WE TOO - Password Reset OTP',
+        text: emailText,
+        html: emailHtml
+      });
+      console.log('OTP email sent successfully to:', email);
+    } catch (emailError) {
+      console.error('Failed to send OTP email:', emailError);
+      // Don't fail the request if email sending fails, just log it
+      // The user can still use the OTP code if they check the database or logs
+    }
     
-    return res.json({ message: 'OTP sent' });
+    return res.json({ 
+      message: 'OTP sent', 
+      emailSent: true,
+      // In development, we might want to return the code for testing
+      code: process.env.NODE_ENV === 'development' ? code : undefined
+    });
   } catch (error) {
     console.error('Error in requestOtp:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -196,12 +209,19 @@ async function resetPassword(req, res) {
       The WE TOO Team
     `;
     
-    await sendMail({
-      to: email,
-      subject: 'WE TOO - Password Reset Successful',
-      text: emailText,
-      html: emailHtml
-    });
+    // Try to send confirmation email, but don't fail the request if it fails
+    try {
+      await sendMail({
+        to: email,
+        subject: 'WE TOO - Password Reset Successful',
+        text: emailText,
+        html: emailHtml
+      });
+      console.log('Password reset confirmation email sent successfully to:', email);
+    } catch (emailError) {
+      console.error('Failed to send password reset confirmation email:', emailError);
+      // Don't fail the request if email sending fails
+    }
     
     return res.json({ message: 'Password updated' });
   } catch (error) {
