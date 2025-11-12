@@ -8,20 +8,26 @@ function createTransport(primary = true) {
     const user = process.env.SMTP_USER || '';
     const pass = process.env.SMTP_PASS || '';
 
+    // Create transporter with environment-aware TLS settings.
+    // Note: In production, make sure SMTP credentials are provided via Render's
+    // environment variables (do NOT commit credentials to repo). For Gmail use
+    // an App Password (if your account has 2FA) or consider using an API-based
+    // provider such as SendGrid/Mailgun.
     return nodemailer.createTransport({
       host,
       port,
-      secure: port === 465, // true for 465, false for other ports
+      secure: port === 465, // true for 465, false for other ports (587 uses STARTTLS)
       auth: user && pass ? { user, pass } : undefined,
+      // Only disable certificate verification for local development. In
+      // production we should keep rejectUnauthorized=true to avoid MITM risks.
       tls: {
-        rejectUnauthorized: false, // Only for development - should be true in production
-        ciphers: 'SSLv3'
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
       },
       connectionTimeout: 60000, // 60 seconds
       greetingTimeout: 60000,   // 60 seconds
       socketTimeout: 60000,     // 60 seconds
       logger: true,
-      debug: true
+      debug: process.env.NODE_ENV !== 'production'
     });
   } else {
     // Fallback transport (SendGrid or similar)
@@ -71,4 +77,15 @@ async function sendMail({ to, subject, text, html }) {
   }
 }
 
-module.exports = { sendMail };
+// Optional helper: verify transport connectivity. This is intentionally
+// gated behind ALLOW_SMTP_VERIFY to avoid exposing diagnostics in production.
+async function verifyTransport(primary = true) {
+  if (process.env.ALLOW_SMTP_VERIFY !== 'true') {
+    throw new Error('SMTP verification disabled. Set ALLOW_SMTP_VERIFY=true to enable.');
+  }
+
+  const transporter = createTransport(primary);
+  return transporter.verify();
+}
+
+module.exports = { sendMail, verifyTransport };
