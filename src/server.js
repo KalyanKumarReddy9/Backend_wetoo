@@ -6,12 +6,14 @@ dotenv.config();
 const createApp = require('./app');
 const { connectAndSync } = require('./models');
 
-const port = process.env.PORT || 4000;
+// Use the PORT environment variable provided by Render, or default to 4000
+const port = process.env.PORT ? Number(process.env.PORT) : 4000;
 const host = process.env.HOST || '0.0.0.0'; // Bind to all interfaces by default
 
 async function startServer() {
   try {
     console.log('Starting WE TOO API server...');
+    console.log(`Environment: PORT=${port}, HOST=${host}`);
     
     // Connect to database and sync models
     await connectAndSync();
