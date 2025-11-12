@@ -45,6 +45,11 @@ async function requestOtp(req, res) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await OtpToken.create({ email, code, purpose, expiresAt });
     
+    // Log the OTP code for debugging in development/Render environments
+    if (process.env.NODE_ENV === 'development' || process.env.RENDER) {
+      console.log(`OTP CODE FOR ${email}: ${code}`);
+    }
+    
     // Send detailed email with OTP
     const emailHtml = purpose === 'registration' ? `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -122,7 +127,7 @@ async function requestOtp(req, res) {
     return res.json({ 
       message: 'OTP sent', 
       emailSent: emailSent,
-      // In development, we might want to return the code for testing
+      // In development/Render, we might want to return the code for testing
       code: process.env.NODE_ENV === 'development' || process.env.RENDER ? code : undefined
     });
   } catch (error) {
